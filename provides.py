@@ -23,17 +23,36 @@ from charms.reactive import scopes
 class MongoDBDatabaseProvides(RelationBase):
     scope = scopes.UNIT
 
-    @hook('{provides:mongodb-database}-relation-{joined,changed}')
+    @hook('{provides:mongodb-database}-relation-joined')
     def changed(self):
-        self.set_state('{relation_name}.available')
+        conv = self.conversation()
+        conv.remove_state('{relation_name}.broken')
+        conv.set_state('{relation_name}.connected')
 
-    @hook('{provides:mongodb-database}-relation-{broken,departed}')
+    @hook('{provides:mongodb-database}-relation-changed')
+    def changed(self):
+        conv = self.conversation()
+        conv.remove_state('{relation_name}.departed')
+        conv.set_state('{relation_name}.available')
+
+    @hook('{provides:mongodb-database}-relation-broken')
     def broken(self):
-        self.remove_state('{relation_name}.available')
+        conv = self.conversation()
+        conv.set_state('{relation_name}.broken')
+        conv.remove_state('{relation_name}.available')
 
-    def configure(self, uri, db):
+    @hook('{provides:mongodb-database}-relation-departed')
+    def broken(self):
+        conv = self.conversation()
+        conv.set_state('{relation_name}.departed')
+        conv.remove_state('{relation_name}.connected')
+
+
+    def configure(self, uri, db, collection):
         relation_info = {
             'uri': uri,     
-            'db': db
+            'db': db,
+            'collection': collection
         }
-        self.set_remote(**relation_info)
+        for conv in self.conversations():
+            conv.set_remote(**relation_info)

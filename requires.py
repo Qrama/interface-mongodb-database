@@ -22,18 +22,35 @@ from charms.reactive import scopes
 class MongoDBDatabaseRequires(RelationBase):
     scope = scopes.UNIT
 
-    @hook('{requires:kafka-topic}-relation-{joined,changed}')
+
+    @hook('{requires:mongodb-database}-relation-joined')
     def changed(self):
         conv = self.conversation()
+        conv.remove_state('{relation_name}.broken')
+        conv.set_state('{relation_name}.connected')
+
+    @hook('{requires:mongodb-database}-relation-changed')
+    def changed(self):
+        conv = self.conversation()
+        conv.remove_state('{relation_name}.departed')
         if conv.get_remote('uri'):
             conv.set_state('{relation_name}.available')
 
-    @hook('{requires:kafka-topic}-relation-{departed,broken}')
+    @hook('{requires:mongodb-database}-relation-broken')
     def broken(self):
         conv = self.conversation()
+        conv.set_state('{relation_name}.broken')
         conv.remove_state('{relation_name}.available')
+
+    @hook('{requires:mongodb-database}-relation-departed')
+    def broken(self):
+        conv = self.conversation()
+        conv.set_state('{relation_name}.departed')
+        conv.remove_state('{relation_name}.connected')
+
 
     def connection(self):
         for conv in self.conversations():
-            yield {'uri': conv.get_remote('uri')
-                   'db' : conv.get_remote('db')}
+            yield {'uri': conv.get_remote('uri'),
+                   'db' : conv.get_remote('db'),
+                   'collection': conv.get_remote('collection')}
